@@ -31,25 +31,18 @@ Basic usage::
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence, Iterator, MutableSequence
-from typing import Any, SupportsIndex, overload
+from typing import Any, Protocol, SupportsIndex, overload, runtime_checkable
 
 
 __all__ = ["sliceview"]
 __version__ = "0.1.0"
 
 
-class _OpenRange:
-    """Sentinel for a range whose stop is open (None), so it grows with the base."""
-
-    __slots__ = ("start", "step")
-
-    def __init__(self, start: int, step: int) -> None:
-        self.start = start
-        self.step = step
-
-    def resolve(self, b_len: int) -> range:
-        stop = b_len if self.step > 0 else -1
-        return range(self.start, stop, self.step)
+@runtime_checkable
+class SliceViewable(Protocol):
+    """sliceview requires Sequence interface"""
+    def __len__(self): ...
+    def __getattr__(self, name: str): ...
 
 
 class sliceview[T](Sequence[T]):
@@ -77,11 +70,18 @@ class sliceview[T](Sequence[T]):
     [1, 3, 5]
     """
 
-    __slots__ = ("_base", "_range")
+    __slots__ = ("_base", "_range", "_unbound")
 
     # ------------------------------------------------------------------
     # Construction
     # ------------------------------------------------------------------
+
+    @overload
+    def __init__(self, base: Sequence[T], start: slice, /) -> None: ...
+    @overload
+    def __init__(self, base: Sequence[T], start: int, stop: int, step: int) -> None: ...
+    @overload
+    def __init__(self, base: Sequence[T], start: int, stop: None, step: int) -> None: ...
 
     def __init__(
         self,
@@ -90,27 +90,24 @@ class sliceview[T](Sequence[T]):
         stop: int | None = None,
         step: int | None = None,
     ) -> None:
-        if not (hasattr(base, "__len__") and hasattr(base, "__getitem__")):
+        if isinstance(base, SliceViewable):
             raise TypeError(
                 f"sliceview requires a sequence with __len__ and __getitem__, "
                 f"got {type(base).__name__!r}"
             )
         self._base = base
-
-        if isinstance(start, slice) and stop is None and step is None:
+        
+        if isinstance(start, slice):
+            if (stop, step) != (None, None):
+                raise ValueError('sliceview initialized with slice must not have stop/step arguments')
             sl: slice = start
         else:
             sl = slice(start, stop, step)
-
+        
+        self._unbound = sl.stop is None
         b_len = len(base)
         s, e, st = sl.indices(b_len)
-
-        # If the original stop was None, store an open sentinel so that the
-        # view grows when elements are appended to the base.
-        if sl.stop is None:
-            self._range = _OpenRange(s, st)
-        else:
-            self._range = range(s, e, st)
+        self._range = range(s, e, st)
 
     @classmethod
     def _from_range(cls, base: Sequence[T], r: range) -> sliceview[T]:
@@ -118,25 +115,30 @@ class sliceview[T](Sequence[T]):
         sv = cls.__new__(cls)
         sv._base = base
         sv._range = r
+        sv._unbound = False
         return sv
 
     # ------------------------------------------------------------------
     # Core helper
     # ------------------------------------------------------------------
 
-    def _current_range(self) -> range:
+    @property
+    def range(self) -> range:
         """Return a concrete ``range`` clamped to the current base length."""
-        r = self._range
-        if isinstance(r, _OpenRange):
-            return r.resolve(len(self._base))
-        return r
+        b_len = len(self._base)
+
+        # Unbound views grow and shrink with the base sequence
+        if self._unbound:
+            if self._range.stop != b_len:
+                self._range = range(self._range.start, b_len, self._range.step)
+        return self._range
 
     # ------------------------------------------------------------------
     # Sequence protocol
     # ------------------------------------------------------------------
 
     def __len__(self) -> int:
-        return len(self._current_range())
+        return len(self.range)
 
     @overload
     def __getitem__(self, index: SupportsIndex) -> T: ...
@@ -146,11 +148,11 @@ class sliceview[T](Sequence[T]):
     def __getitem__(self, index: SupportsIndex | slice) -> T | sliceview[T]:
         if isinstance(index, slice):
             # Compose slices using Python's range slicing — O(1), exact.
-            sub = self._current_range()[index]
+            sub = self.range[index]
             return sliceview[T]._from_range(self._base, sub)
         
         index = index.__index__()
-        cr = self._current_range()
+        cr = self.range
         length = len(cr)
         if index < 0:
             index += length
@@ -174,18 +176,17 @@ class sliceview[T](Sequence[T]):
             return
         
         index = index.__index__()
-        cr = self._current_range()
+        cr = self.range
         length = len(cr)
         if index < 0:
             index += length
         if not (0 <= index < length):
             raise IndexError("sliceview index out of range")
-        i = cr[index]
-        self._base[i] = value
+        self._base[cr[index]] = value
 
     def __iter__(self) -> Iterator[T]:
         base = self._base
-        _cur_range = self._current_range()
+        _cur_range = self.range
         return iter(base[_cur_range.start:_cur_range.stop:_cur_range.step])
 
     def __contains__(self, item: object) -> bool:
@@ -193,8 +194,8 @@ class sliceview[T](Sequence[T]):
 
     def __reversed__(self) -> Iterator[T]:
         base = self._base
-        _cur_range = self._current_range()
-        yield from (base[i] for i in reversed(_cur_range))
+        _cur_range = self.range
+        return (base[i] for i in reversed(_cur_range))
 
     # ------------------------------------------------------------------
     # Equality and hashing
@@ -212,8 +213,8 @@ class sliceview[T](Sequence[T]):
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
-        cr = self._current_range()
-        return f"sliceview({self._base!r})[{cr.start}:{cr.stop}:{cr.step}]"
+        cr = self.range
+        return f"sliceview(<{self._base[cr.start:cr.stop:cr.step]!r}>)[{cr.start}:{cr.stop}:{cr.step}]"
 
     # ------------------------------------------------------------------
     # Advance — sliding-window helper
@@ -239,7 +240,7 @@ class sliceview[T](Sequence[T]):
             Positions to advance (negative to retreat).
         """
         b_len = len(self._base)
-        cr = self._current_range()
+        cr = self.range
         new_start = max(0, min(cr.start + n, b_len))
         delta = new_start - cr.start
         new_stop = max(0, min(cr.stop + delta, b_len))
@@ -271,8 +272,8 @@ class sliceview[T](Sequence[T]):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _setslice(self, sl: slice, values: Iterable[T]) -> None:
-        target_range = self._current_range()[sl]
+    def _setslice(self, sl: slice, values: Iterable[Any]) -> None:
+        target_range = self.range[sl]
         values = list(values)
         if not isinstance(self._base, MutableSequence):
             raise TypeError(f'Base type of sliceview must be Mutable')

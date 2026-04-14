@@ -129,11 +129,11 @@ class sliceview[T](Sequence[T]):
     @property
     def range(self) -> range:
         """Return a concrete ``range`` clamped to the current base length."""
-        b_len = len(self._base)
 
         # Unbound views grow and shrink with the base sequence
         if self._unbound:
-            if self._range.stop not in (b_len, -1):
+            b_len = len(self._base)
+            if self._range.stop > 0 and self._range.stop != b_len:
                 stop = b_len if self._range.step > 0 else -1
                 self._range = range(self._range.start, stop, self._range.step)
         return self._range
@@ -278,21 +278,16 @@ class sliceview[T](Sequence[T]):
     # ------------------------------------------------------------------
 
     def _setslice(self, sl: slice, values: Iterable[Any]) -> None:
-        target_range = self.range[sl]
-        values = list(values)
         if not isinstance(self._base, MutableSequence):
             raise TypeError(f'Base type of sliceview must be Mutable')
-        if abs(target_range.step) != 1:
-            # Extended slice assignment must match length exactly.
-            if len(values) != len(target_range):
-                raise ValueError(
-                    f"attempt to assign sequence of size {len(values)} "
-                    f"to extended slice of size {len(target_range)}"
-                )
-            for i, v in zip(target_range, values):
-                self._base[i] = v
-        else:
-            # Step ±1: delegate to the base (allows resizing if base supports it).
-            self._base[
-                slice(target_range.start, target_range.stop, target_range.step)
-            ] = values
+        
+        tr = self.range[sl]
+        values = list(values)
+        
+        if len(values) != len(tr):
+            raise ValueError(
+                f"attempt to assign sequence of size {len(values)} "
+                f"to extended slice of size {len(tr)}"
+            )
+        
+        self._base[tr.start:tr.stop:tr.step] = values

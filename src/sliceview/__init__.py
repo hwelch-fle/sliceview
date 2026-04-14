@@ -77,7 +77,11 @@ class sliceview[T](Sequence[T]):
     # ------------------------------------------------------------------
 
     @overload
-    def __init__(self, base: Sequence[T], start: slice, /) -> None: ...
+    def __init__(self, base: Sequence[T]) -> None: ...
+    @overload
+    def __init__(self, base: Sequence[T], start: slice) -> None: ...
+    @overload
+    def __init__(self, base: Sequence[T], start: int, stop: int) -> None: ...
     @overload
     def __init__(self, base: Sequence[T], start: int, stop: int, step: int) -> None: ...
     @overload
@@ -129,8 +133,9 @@ class sliceview[T](Sequence[T]):
 
         # Unbound views grow and shrink with the base sequence
         if self._unbound:
-            if self._range.stop != b_len:
-                self._range = range(self._range.start, b_len, self._range.step)
+            if self._range.stop not in (b_len, -1):
+                stop = b_len if self._range.step > 0 else -1
+                self._range = range(self._range.start, stop, self._range.step)
         return self._range
 
     # ------------------------------------------------------------------

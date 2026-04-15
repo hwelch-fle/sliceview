@@ -253,10 +253,14 @@ class sliceview[T](Sequence[T]):
     __hash__ = None  # type: ignore[assignment]  # unhashable by design
 
     def __repr__(self) -> str:
-        _window = self.slice
-        _window_repr = ':'.join(map(str, _window.indices(len(self.base))))
-        _base_repr = repr(self.base[_window])
-        return f"sliceview(<{_base_repr}>)[{_window_repr}]"
+        _window = self.slice.indices(len(self.base))
+        _window_repr = ':'.join(map(str, _window))
+        return f"sliceview[{_window_repr}]({repr(self.base)})"
+
+    def __str__(self) -> str:
+        _window = self.slice.indices(len(self.base))
+        _window_repr = ':'.join(map(str, _window))
+        return f"sliceview[{_window_repr}](>{repr(self.base[self.slice])}<)"
 
     def _setslice(self, sl: slice, values: Iterable[Any]) -> None:
         if not isinstance(self._base, MutableSequence):

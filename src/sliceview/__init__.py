@@ -61,7 +61,16 @@ class SliceViewable(Protocol):
 def range_to_slice(r: range) -> slice:
     """Convert a range to a slice"""
     start, stop, step = r.start, r.stop, r.step
-    stop = stop if step > 0 else None
+
+    # range(1, 0, 1) -> slice(1, None, 1) 
+    _inverted = stop < start and step > 0
+    # range(0, 1, -1) -> slice(0, None, -1)
+    _reversed = stop > start and step < 0
+    # range(n, -1, -1) -> slice(n, None, -1)
+    _from_end = step < 0 and stop == -1
+    if _inverted or _reversed or _from_end:
+        stop = None
+    
     return slice(start, stop, step)
 
 
@@ -141,7 +150,7 @@ class sliceview[T](Sequence[T]):
         else:
             sl = slice(start, stop, step)
         
-        self._unbound = sl.stop is None or sl.stop < 0
+        self._unbound = sl.stop is None
         self._range = slice_to_range(sl, len(base))
 
     @classmethod
@@ -167,6 +176,11 @@ class sliceview[T](Sequence[T]):
             else self._range
         )
 
+    @property
+    def slice(self) -> slice:
+        """Return a slice object representing the current view"""
+        return range_to_slice(self.range)
+
     def __len__(self) -> int:
         return len(self.range)
 
@@ -183,8 +197,7 @@ class sliceview[T](Sequence[T]):
             )
 
         if isinstance(index, slice):
-            sub = self.range[index]
-            return sliceview[T].from_range(self.base, sub)
+            return sliceview[T].from_range(self.base, self.range[index])
         
         else:
             index = index.__index__()
@@ -200,7 +213,7 @@ class sliceview[T](Sequence[T]):
     def __setitem__(self, index: slice, value: Iterable[T]) -> None: ...
     
     def __setitem__(self, index: object, value: T | Iterable[T]) -> None:
-        if not isinstance(self.base, MutableSequence):
+        if not isinstance(self._base, MutableSequence):
             raise TypeError("underlying sequence is not mutable")
 
         if not isinstance(index, (slice, SupportsIndex)):
@@ -212,20 +225,19 @@ class sliceview[T](Sequence[T]):
         if isinstance(index, slice):
             if not guard_type(value, Iterable[T]):
                 raise TypeError('can only assign an iterable')
-            self._setslice(index, value)
+            self._base[range_to_slice(self.range[index])] = value
             return
         
-        else:
-            index = index.__index__()
-            length = len(self.range)
-            if index < 0:
-                index += length
-            if index not in range(length):
-                raise IndexError("sliceview index out of range")
-            self.base[self.range[index]] = value
+        index = index.__index__()
+        length = len(self.range)
+        if index < 0:
+            index += length
+        if index not in range(length):
+            raise IndexError("sliceview index out of range")
+        self._base[self.range[index]] = value # type: ignore
 
     def __iter__(self) -> Iterator[T]:
-        return iter(self.base[range_to_slice(self.range)])
+        return iter(self.base[self.slice])
 
     def __contains__(self, item: object) -> bool:
         return any(item == el for el in self)
@@ -241,40 +253,12 @@ class sliceview[T](Sequence[T]):
     __hash__ = None  # type: ignore[assignment]  # unhashable by design
 
     def __repr__(self) -> str:
-        _window = range_to_slice(self.range)
+        _window = self.slice
         _window_repr = ':'.join(map(str, _window.indices(len(self.base))))
         _base_repr = repr(self.base[_window])
         return f"sliceview(<{_base_repr}>)[{_window_repr}]"
 
-    def advance(self, n: int) -> sliceview[T]:
-        """Shift the view's window forward by *n* index positions in-place.
-
-        Returns *self* so calls can be chained.  Useful for sliding windows:
-
-        >>> data = list(range(10))
-        >>> sv = sliceview(data, 0, 3)
-        >>> list(sv)
-        [0, 1, 2]
-        >>> sv.advance(3)                    # doctest: +ELLIPSIS
-        sliceview(...)[3:6:1]
-        >>> list(sv)
-        [3, 4, 5]
-
-        Parameters
-        ----------
-        n:
-            Positions to advance (negative to retreat).
-        """
-        b_len = len(self.base)
-        cr = self.range
-        new_start = max(0, min(cr.start + n, b_len))
-        delta = new_start - cr.start
-        new_stop = max(0, min(cr.stop + delta, b_len))
-        self._range = range(new_start, new_stop, cr.step)
-        return self
-
     def _setslice(self, sl: slice, values: Iterable[Any]) -> None:
         if not isinstance(self._base, MutableSequence):
             raise TypeError(f'base of sliceview {type(self._base)} is not mutable')
-        tr = self.range[sl]
-        self._base[range_to_slice(tr)] = values
+        

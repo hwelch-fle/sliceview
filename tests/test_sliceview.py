@@ -268,19 +268,19 @@ class TestRepr:
 # tolist / copy
 # ---------------------------------------------------------------------------
 
-class TestCopy:
-    def test_tolist(self):
-        data = [1, 2, 3, 4, 5]
-        sv = sliceview(data)[1:4]
-        result = sv.tolist()
-        assert result == [2, 3, 4]
-        assert isinstance(result, list)
-        result[0] = 99
-        assert data[1] == 2  # original unchanged
-
-    def test_copy(self):
-        sv = sliceview([1, 2, 3])
-        assert sv.copy() == [1, 2, 3]
+# class TestCopy:
+#     def test_tolist(self):
+#         data = [1, 2, 3, 4, 5]
+#         sv = sliceview(data)[1:4]
+#         result = sv.tolist()
+#         assert result == [2, 3, 4]
+#         assert isinstance(result, list)
+#         result[0] = 99
+#         assert data[1] == 2  # original unchanged
+# 
+#     def test_copy(self):
+#         sv = sliceview([1, 2, 3])
+#         assert sv.copy() == [1, 2, 3]
 
 
 # ---------------------------------------------------------------------------

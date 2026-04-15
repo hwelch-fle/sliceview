@@ -235,8 +235,6 @@ class sliceview[T](Sequence[T]):
             return all(a == b for a, b in zip(self, other))
         return False
 
-    __hash__ = None  # type: ignore[assignment]  # unhashable by design
-
     def __repr__(self) -> str:
         _window = self.slice.indices(len(self.base))
         _window_repr = ':'.join(map(str, _window))

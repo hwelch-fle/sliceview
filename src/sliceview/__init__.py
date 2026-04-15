@@ -242,4 +242,6 @@ class sliceview[T](Sequence[T]):
         _window = self.slice.indices(len(self.base))
         _window_repr = ':'.join(map(str, _window))
         return f"sliceview[{_window_repr}](>{list(self)}<)"
-        
+    
+    # TODO
+    def advance(self) -> None: ...

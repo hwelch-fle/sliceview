@@ -51,22 +51,19 @@ __all__ = ["sliceview"]
 __version__ = "0.1.0"
 
 
-@runtime_checkable
-class SliceViewable(Protocol):
-    """sliceview requires Sequence interface"""
-    def __len__(self): ...
-    def __getattr__(self, name: str): ...
-
-
 def range_to_slice(r: range) -> slice:
     """Convert a range to a slice"""
     start, stop, step = r.start, r.stop, r.step
 
-    # range(1, 0, 1) -> slice(1, None, 1) 
+    # range (n, n, s) -> slice(0, 0, 1) [empty]
+    if start == stop:
+        return slice(0,0,1)
+    
+    # range(n, n-1, s) -> slice(n, None, s)
     _inverted = stop < start and step > 0
-    # range(0, 1, -1) -> slice(0, None, -1)
+    # range(n, n+1, -s) -> slice(n, None, -s)
     _reversed = stop > start and step < 0
-    # range(n, -1, -1) -> slice(n, None, -1)
+    # range(n, -1, -s) -> slice(n, None, -s)
     _from_end = step < 0 and stop == -1
     if _inverted or _reversed or _from_end:
         stop = None
@@ -129,38 +126,27 @@ class sliceview[T](Sequence[T]):
     @overload
     def __init__(self, base: Sequence[T], start: int, stop: None, step: int) -> None: ...
 
-    def __init__(self, base: Sequence[T], 
-                 start : int | slice | None = None, 
-                 stop: int | None = None, 
-                 step: int | None = None,
+    def __init__(self, base: Sequence[T] | object, 
+                 start : object = None, 
+                 stop: object = None, 
+                 step: object = None,
         ) -> None:
-        if isinstance(base, SliceViewable):
+        if not guard_type(base, Sequence[T]):
             raise TypeError(
                 f"sliceview requires a sequence with __len__ and __getitem__, "
                 f"got {type(base).__name__!r}"
             )
         self._base = base
         
-        if isinstance(start, slice):
+        if guard_type(start, slice):
             if (stop, step) != (None, None):
-                raise ValueError(
-                    'sliceview initialized with slice must not have stop/step arguments'
-                )
+                raise ValueError('sliceview initialized with slice must not have stop/step arguments')
             sl: slice = start
         else:
             sl = slice(start, stop, step)
         
         self._unbound = sl.stop is None
         self._range = slice_to_range(sl, len(base))
-
-    @classmethod
-    def from_range(cls, base: Sequence[T], r: range) -> sliceview[T]:
-        """Internal constructor: build a view directly from a range object."""
-        sv = cls.__new__(cls)
-        sv._base = base
-        sv._range = r
-        sv._unbound = r.stop < 0
-        return sv
 
     @property
     def base(self) -> Sequence[T] | MutableSequence[T]:
@@ -197,10 +183,10 @@ class sliceview[T](Sequence[T]):
             )
 
         if isinstance(index, slice):
-            return sliceview[T].from_range(self.base, self.range[index])
+            return type(self)(self.base, range_to_slice(self.range[index]))
         
         else:
-            index = index.__index__()
+            index = int(index)
             if index < 0:
                 index += len(self.range)
             if not (0 <= index < len(self.range)):
@@ -214,30 +200,29 @@ class sliceview[T](Sequence[T]):
     
     def __setitem__(self, index: object, value: T | Iterable[T]) -> None:
         if not isinstance(self._base, MutableSequence):
-            raise TypeError("underlying sequence is not mutable")
-
-        if not isinstance(index, (slice, SupportsIndex)):
-            raise TypeError(
-                f'{type(self).__name__} indices must be integers or slices, '
-                f'not {type(index).__name__}'
-            )
-
-        if isinstance(index, slice):
-            if not guard_type(value, Iterable[T]):
-                raise TypeError('can only assign an iterable')
-            self._base[range_to_slice(self.range[index])] = value
-            return
+            raise TypeError(f"underlying sequence of type '{type(self.base)}' has no '__setitem__'")
         
-        index = index.__index__()
-        length = len(self.range)
-        if index < 0:
-            index += length
-        if index not in range(length):
-            raise IndexError("sliceview index out of range")
-        self._base[self.range[index]] = value # type: ignore
+        match index:
+            case slice():
+                if not guard_type(value, Iterable[T]):
+                    raise TypeError('can only assign an iterable')
+                self._base[range_to_slice(self.range[index])] = value
+            
+            case SupportsIndex():
+                w_size = len(self.range)
+                index = int(index) + (w_size if int(index) < 0 else 0)
+                if index not in range(w_size):
+                    raise IndexError("sliceview index out of range")
+                self._base[self.range[index]] = value # type: ignore
+            
+            case _:
+                raise TypeError(
+                    f'{type(self).__name__} indices must be integers or slices, '
+                    f'not {type(index).__name__}'
+                )
 
     def __iter__(self) -> Iterator[T]:
-        return iter(self.base[self.slice])
+        yield from (self.base[i] for i in self.range)
 
     def __contains__(self, item: object) -> bool:
         return any(item == el for el in self)
@@ -260,7 +245,7 @@ class sliceview[T](Sequence[T]):
     def __str__(self) -> str:
         _window = self.slice.indices(len(self.base))
         _window_repr = ':'.join(map(str, _window))
-        return f"sliceview[{_window_repr}](>{repr(self.base[self.slice])}<)"
+        return f"sliceview[{_window_repr}](>{list(self)}<)"
 
     def _setslice(self, sl: slice, values: Iterable[Any]) -> None:
         if not isinstance(self._base, MutableSequence):

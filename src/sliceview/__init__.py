@@ -198,7 +198,7 @@ class sliceview[T](Sequence[T]):
     @overload
     def __setitem__(self, index: slice, value: Iterable[T]) -> None: ...
     
-    def __setitem__(self, index: object, value: T | Iterable[T]) -> None:
+    def __setitem__(self, index: object, value: Any) -> None:
         if not isinstance(self._base, MutableSequence):
             raise TypeError(f"underlying sequence of type '{type(self.base)}' has no '__setitem__'")
         
@@ -213,7 +213,7 @@ class sliceview[T](Sequence[T]):
                 index = int(index) + (w_size if int(index) < 0 else 0)
                 if index not in range(w_size):
                     raise IndexError("sliceview index out of range")
-                self._base[self.range[index]] = value # type: ignore
+                self._base[self.range[index]] = value
             
             case _:
                 raise TypeError(
@@ -244,8 +244,4 @@ class sliceview[T](Sequence[T]):
         _window = self.slice.indices(len(self.base))
         _window_repr = ':'.join(map(str, _window))
         return f"sliceview[{_window_repr}](>{list(self)}<)"
-
-    def _setslice(self, sl: slice, values: Iterable[Any]) -> None:
-        if not isinstance(self._base, MutableSequence):
-            raise TypeError(f'base of sliceview {type(self._base)} is not mutable')
         

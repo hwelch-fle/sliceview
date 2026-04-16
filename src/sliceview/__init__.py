@@ -81,7 +81,7 @@ def clamp_range(r: range, length: int) -> range:
     return range(r.start, stop, r.step)
 
 
-def guard_type[T](obj: object, typ: type[T]) -> TypeGuard[T]:
+def guarded_isinstance[T](obj: object, typ: type[T]) -> TypeGuard[T]:
     """isinstance but with generic preservation (type checking only!)"""
     typ = typ.mro()[0]
     return isinstance(obj, typ)
@@ -130,14 +130,14 @@ class sliceview[T](Sequence[T]):
                  stop: object = None, 
                  step: object = None,
         ) -> None:
-        if not guard_type(base, Sequence[T]):
+        if not guarded_isinstance(base, Sequence[T]):
             raise TypeError(
                 f"sliceview requires a sequence with __len__ and __getitem__, "
                 f"got {type(base).__name__!r}"
             )
         self._base = base
         
-        if guard_type(start, slice):
+        if guarded_isinstance(start, slice):
             if (stop, step) != (None, None):
                 raise ValueError('sliceview initialized with slice must not have stop/step arguments')
             sl: slice = start
@@ -198,12 +198,12 @@ class sliceview[T](Sequence[T]):
     def __setitem__(self, index: slice, value: Iterable[T]) -> None: ...
     
     def __setitem__(self, index: object, value: Any) -> None:
-        if not guard_type(self._base, MutableSequence[T]):
-            raise TypeError(f"underlying sequence of type '{type(self.base)}' has no '__setitem__'")
+        if not guarded_isinstance(self._base, MutableSequence[T]):
+            raise TypeError(f"underlying sequence of type '{type(self._base)}' has no '__setitem__'")
         
         match index:
             case slice():
-                if not guard_type(value, Iterable[T]):
+                if not guarded_isinstance(value, Iterable[T]):
                     raise TypeError('can only assign an iterable')
                 self._base[range_to_slice(self.range[index])] = value
             
@@ -236,7 +236,7 @@ class sliceview[T](Sequence[T]):
         return (self.base[i] for i in reversed(self.range))
 
     def __eq__(self, other: Sequence[T] | object) -> bool:
-        if guard_type(other, Sequence[T]) and len(self) == len(other):
+        if guarded_isinstance(other, Sequence[T]) and len(self) == len(other):
             return all(a == b for a, b in zip(self, other))
         return False
 

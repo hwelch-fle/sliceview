@@ -41,7 +41,6 @@ from typing import (
     Any,
     Self, 
     SupportsIndex, 
-    TypeGuard, 
     overload, 
 )
 
@@ -68,17 +67,6 @@ def range_to_slice(r: range) -> slice:
         stop = None
     
     return slice(start, stop, step)
-
-
-def slice_to_range(s: slice, length: int) -> range:
-    """Convert a slice to a range for a sequence of length `length`"""
-    return range(*s.indices(length))
-
-
-def guarded_isinstance[T](obj: object, typ: type[T]) -> TypeGuard[T]:
-    """isinstance but with generic preservation (type checking only!)"""
-    typ = typ.mro()[0]
-    return isinstance(obj, typ)
 
 
 class sliceview[T](Sequence[T]):
@@ -195,13 +183,13 @@ class sliceview[T](Sequence[T]):
     def __setitem__(self, index: slice, value: Iterable[T]) -> None: ...
     
     def __setitem__(self, index: object, value: Any) -> None:
-        if not guarded_isinstance(self._base, MutableSequence[T]):
+        if not isinstance(self._base, MutableSequence):
             raise TypeError(f"underlying sequence of type '{type(self._base)}' has no '__setitem__'")
         
         r = self.range if self._unbound else self._range
         match index:
             case slice():
-                if not guarded_isinstance(value, Iterable[T]):
+                if not isinstance(value, Iterable):
                     raise TypeError('can only assign an iterable')
                 self._base[range_to_slice(r[index])] = value
             
@@ -236,7 +224,7 @@ class sliceview[T](Sequence[T]):
         return (self._base[i] for i in reversed(r))
 
     def __eq__(self, other: Sequence[T] | object) -> bool:
-        if guarded_isinstance(other, Sequence[T]) and len(self) == len(other):
+        if isinstance(other, Sequence) and len(self) == len(other):
             return all(a == b for a, b in zip(self, other))
         return False
 

@@ -49,6 +49,7 @@ __all__ = ["sliceview"]
 __version__ = "0.1.0"
 
 
+# perf: ~250ns O(1)
 def range_to_slice(r: range) -> slice:
     """Convert a range to a slice"""
     start, stop, step = r.start, r.stop, r.step
@@ -107,6 +108,7 @@ class sliceview[T](Sequence[T]):
     @overload
     def __init__(self, base: Sequence[T], start: int, stop: None, step: int) -> None: ...
 
+    # perf: ~500ns O(1)
     def __init__(self, base: Sequence[T] | object, 
                  start : object = None, 
                  stop: object = None, 
@@ -129,11 +131,13 @@ class sliceview[T](Sequence[T]):
         self._unbound = sl.stop is None
         self._range = range(*sl.indices(len(base)))
 
+    # perf: ~40ns O(1)
     @property
     def base(self) -> Sequence[T] | MutableSequence[T]:
         """The base sequence of the sliceview"""
         return self._base
 
+    # perf: ~50ns if bounded, ~125ns if unbounded O(1)
     @property
     def range(self) -> range:
         """Return a concrete `range` clamped to the current base length."""
@@ -144,11 +148,13 @@ class sliceview[T](Sequence[T]):
             else r
         )
 
+    # perf: ~150ns if bounded, ~320ns if unbounded O(1)
     @property
     def slice(self) -> slice:
         """Return a slice object representing the current view"""
         return range_to_slice(self.range if self._unbound else self._range)
 
+    # perf: ~80ns if bounded, ~200ns if unbounded O(1)
     def __len__(self) -> int:
         return len(self.range if self._unbound else self._range)
 
@@ -157,6 +163,7 @@ class sliceview[T](Sequence[T]):
     @overload
     def __getitem__(self, index: slice) -> sliceview[T]: ...
 
+    # perf: Sequence.__getitem__+ K
     def __getitem__(self, index: object) -> T | sliceview[T]:
         if not isinstance(index, (slice, SupportsIndex)):
             raise TypeError(
@@ -182,6 +189,7 @@ class sliceview[T](Sequence[T]):
     @overload
     def __setitem__(self, index: slice, value: Iterable[T]) -> None: ...
     
+    # perf: Sequence.__setitem__ + K
     def __setitem__(self, index: object, value: Any) -> None:
         if not isinstance(self._base, MutableSequence):
             raise TypeError(f"underlying sequence of type '{type(self._base)}' has no '__setitem__'")
@@ -206,38 +214,46 @@ class sliceview[T](Sequence[T]):
                     f'not {type(index).__name__}'
                 )
 
+    # perf: O(n)
     def __iter__(self) -> Iterator[T]:
         r = self.range if self._unbound else self._range
         yield from (self._base[i] for i in r)
 
+    # perf: ~800ns O(1)
     def __bool__(self) -> bool:
         for _ in self:
             return True
         else:
             return False
 
+    # perf: O(n)*(item.__eq__) worst case
     def __contains__(self, item: object) -> bool:
         return any(item == el for el in self)
 
+    # perf: same as __iter__
     def __reversed__(self) -> Iterator[T]:
         r = self.range if self._unbound else self._range
         return (self._base[i] for i in reversed(r))
 
+    # perf: O(n)*(len(self)*item.__eq__) worst case
     def __eq__(self, other: Sequence[T] | object) -> bool:
         if isinstance(other, Sequence) and len(self) == len(other):
             return all(a == b for a, b in zip(self, other))
         return False
 
+    # perf: ~1000ns O(1)
     def __repr__(self) -> str:
         _window = self.slice.indices(len(self._base))
         _window_repr = ':'.join(map(str, _window))
         return f"sliceview[{_window_repr}]({object.__repr__(self._base)})"
 
+    # perf: same as __iter__
     def __str__(self) -> str:
         _window = self.slice.indices(len(self._base))
         _window_repr = ':'.join(map(str, _window))
         return f"sliceview[{_window_repr}](>{list(self)}<)"
     
+    # perf: ~250ns O(1)
     def advance(self, n: int) -> Self:
         """Shift the view's window forward by *n* index positions in-place.
 

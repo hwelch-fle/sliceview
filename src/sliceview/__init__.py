@@ -75,12 +75,6 @@ def slice_to_range(s: slice, length: int) -> range:
     return range(*s.indices(length))
 
 
-def clamp_range(r: range, length: int) -> range:
-    """Create a new range clamped to `length`"""
-    stop = length if r.step > 0 else -1
-    return range(r.start, stop, r.step)
-
-
 def guarded_isinstance[T](obj: object, typ: type[T]) -> TypeGuard[T]:
     """isinstance but with generic preservation (type checking only!)"""
     typ = typ.mro()[0]
@@ -155,10 +149,11 @@ class sliceview[T](Sequence[T]):
     @property
     def range(self) -> range:
         """Return a concrete `range` clamped to the current base length."""
+        r = self._range
         return (
-            clamp_range(self._range, len(self.base)) 
+            range(r.start, len(self._base) if r.step > 0 else -1, r.step)
             if self._unbound 
-            else self._range
+            else r
         )
 
     @property

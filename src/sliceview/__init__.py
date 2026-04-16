@@ -243,7 +243,7 @@ class sliceview[T](Sequence[T]):
     def __repr__(self) -> str:
         _window = self.slice.indices(len(self.base))
         _window_repr = ':'.join(map(str, _window))
-        return f"sliceview[{_window_repr}]({repr(self.base)})"
+        return f"sliceview[{_window_repr}]({object.__repr__(self.base)})"
 
     def __str__(self) -> str:
         _window = self.slice.indices(len(self.base))

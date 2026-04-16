@@ -159,10 +159,10 @@ class sliceview[T](Sequence[T]):
     @property
     def slice(self) -> slice:
         """Return a slice object representing the current view"""
-        return range_to_slice(self.range)
+        return range_to_slice(self.range if self._unbound else self._range)
 
     def __len__(self) -> int:
-        return len(self.range)
+        return len(self.range if self._unbound else self._range)
 
     @overload
     def __getitem__(self, index: SupportsIndex) -> T: ...
@@ -175,17 +175,19 @@ class sliceview[T](Sequence[T]):
                 f'{type(self).__name__} indices must be integers or slices, '
                 f'not {type(index).__name__}'
             )
-
+        
+        r = self.range if self._unbound else self._range
+        
         if isinstance(index, slice):
-            return type(self)(self.base, range_to_slice(self.range[index]))
+            return type(self)(self._base, range_to_slice(r[index]))
         
         else:
             index = int(index)
             if index < 0:
-                index += len(self.range)
-            if not (0 <= index < len(self.range)):
+                index += len(r)
+            if not (0 <= index < len(r)):
                 raise IndexError("sliceview index out of range")
-            return self.base[self.range[index]]
+            return self._base[r[index]]
 
     @overload
     def __setitem__(self, index: SupportsIndex, value: T) -> None: ...
@@ -196,18 +198,19 @@ class sliceview[T](Sequence[T]):
         if not guarded_isinstance(self._base, MutableSequence[T]):
             raise TypeError(f"underlying sequence of type '{type(self._base)}' has no '__setitem__'")
         
+        r = self.range if self._unbound else self._range
         match index:
             case slice():
                 if not guarded_isinstance(value, Iterable[T]):
                     raise TypeError('can only assign an iterable')
-                self._base[range_to_slice(self.range[index])] = value
+                self._base[range_to_slice(r[index])] = value
             
             case SupportsIndex():
-                w_size = len(self.range)
+                w_size = len(r)
                 index = int(index) + (w_size if int(index) < 0 else 0)
                 if index not in range(w_size):
                     raise IndexError("sliceview index out of range")
-                self._base[self.range[index]] = value
+                self._base[r[index]] = value
             
             case _:
                 raise TypeError(
@@ -216,7 +219,8 @@ class sliceview[T](Sequence[T]):
                 )
 
     def __iter__(self) -> Iterator[T]:
-        yield from (self.base[i] for i in self.range)
+        r = self.range if self._unbound else self._range
+        yield from (self._base[i] for i in r)
 
     def __bool__(self) -> bool:
         for _ in self:
@@ -228,7 +232,8 @@ class sliceview[T](Sequence[T]):
         return any(item == el for el in self)
 
     def __reversed__(self) -> Iterator[T]:
-        return (self.base[i] for i in reversed(self.range))
+        r = self.range if self._unbound else self._range
+        return (self._base[i] for i in reversed(r))
 
     def __eq__(self, other: Sequence[T] | object) -> bool:
         if guarded_isinstance(other, Sequence[T]) and len(self) == len(other):
@@ -236,12 +241,12 @@ class sliceview[T](Sequence[T]):
         return False
 
     def __repr__(self) -> str:
-        _window = self.slice.indices(len(self.base))
+        _window = self.slice.indices(len(self._base))
         _window_repr = ':'.join(map(str, _window))
-        return f"sliceview[{_window_repr}]({object.__repr__(self.base)})"
+        return f"sliceview[{_window_repr}]({object.__repr__(self._base)})"
 
     def __str__(self) -> str:
-        _window = self.slice.indices(len(self.base))
+        _window = self.slice.indices(len(self._base))
         _window_repr = ':'.join(map(str, _window))
         return f"sliceview[{_window_repr}](>{list(self)}<)"
     
@@ -264,8 +269,8 @@ class sliceview[T](Sequence[T]):
             >>> list(sv)
             [3, 4, 5]
         """
-        b_len = len(self.base)
-        cr = self.range
+        b_len = len(self._base)
+        cr = self.range if self._unbound else self._range
         new_start = max(0, min(cr.start + n, b_len))
         delta = new_start - cr.start
         new_stop = max(0, min(cr.stop + delta, b_len))

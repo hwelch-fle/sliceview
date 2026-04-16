@@ -122,6 +122,18 @@ class TestSlicing:
         sv = sliceview([1, 2, 3])[5:10]
         assert list(sv) == []
         assert len(sv) == 0
+        
+    def test_all_slice(self):
+        indices = [None] + list(range(-10, 11))
+        slices = (
+            slice(start, stop, step or None) 
+            for start in indices
+            for stop in indices
+            for step in indices
+        )
+        data = list(range(10))
+        for sl in slices:
+            assert data[sl] == sliceview(data, sl)
 
 
 # ---------------------------------------------------------------------------

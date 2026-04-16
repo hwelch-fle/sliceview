@@ -223,6 +223,12 @@ class sliceview[T](Sequence[T]):
     def __iter__(self) -> Iterator[T]:
         yield from (self.base[i] for i in self.range)
 
+    def __bool__(self) -> bool:
+        for _ in self:
+            return True
+        else:
+            return False
+
     def __contains__(self, item: object) -> bool:
         return any(item == el for el in self)
 

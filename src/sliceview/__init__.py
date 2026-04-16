@@ -214,7 +214,7 @@ class sliceview[T](Sequence[T]):
                     f'not {type(index).__name__}'
                 )
 
-    # perf: O(n)
+    # perf: Sequence.__getitem__ * n
     def __iter__(self) -> Iterator[T]:
         r = self.range if self._unbound else self._range
         for i in r:

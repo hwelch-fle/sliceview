@@ -124,22 +124,22 @@ class sliceview[T](Sequence[T]):
                  stop: object = None, 
                  step: object = None,
         ) -> None:
-        if not guarded_isinstance(base, Sequence[T]):
+        if not isinstance(base, Sequence):
             raise TypeError(
                 f"sliceview requires a sequence with __len__ and __getitem__, "
                 f"got {type(base).__name__!r}"
             )
-        self._base = base
+        self._base: Sequence[T] = base
         
-        if guarded_isinstance(start, slice):
-            if (stop, step) != (None, None):
+        if isinstance(start, slice):
+            if stop or step:
                 raise ValueError('sliceview initialized with slice must not have stop/step arguments')
             sl: slice = start
         else:
             sl = slice(start, stop, step)
         
         self._unbound = sl.stop is None
-        self._range = slice_to_range(sl, len(base))
+        self._range = range(*sl.indices(len(base)))
 
     @property
     def base(self) -> Sequence[T] | MutableSequence[T]:

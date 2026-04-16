@@ -253,21 +253,24 @@ class sliceview[T](Sequence[T]):
     def advance(self, n: int) -> Self:
         """Shift the view's window forward by *n* index positions in-place.
 
-        Args:
-            n: Positions to advance (negative to retreat).
+        Parameters
+        ----------
+        n: Positions to advance (negative to retreat).
             
-        Returns:
-            *self* so calls can be chained.
+        Returns
+        ----------
+        *self* so calls can be chained.
 
-        Example:
-            >>> data = list(range(10))
-            >>> sv = sliceview(data, 0, 3)
-            >>> list(sv)
-            [0, 1, 2]
-            >>> sv.advance(3)
-            sliceview(...)[3:6:1]
-            >>> list(sv)
-            [3, 4, 5]
+        Example
+        ----------
+        >>> data = list(range(10))
+        >>> sv = sliceview(data, 0, 3)
+        >>> list(sv)
+        [0, 1, 2]
+        >>> sv.advance(3)
+        sliceview(...)[3:6:1]
+        >>> list(sv)
+        [3, 4, 5]
         """
         b_len = len(self._base)
         cr = self.range if self._unbound else self._range
@@ -276,7 +279,3 @@ class sliceview[T](Sequence[T]):
         new_stop = max(0, min(cr.stop + delta, b_len))
         self._range = range(new_start, new_stop, cr.step)
         return self
-    
-    def retreat(self, n: int) -> Self:
-        """Mirror of `advance` calls advance with negative `n`"""
-        return self.advance(-n)

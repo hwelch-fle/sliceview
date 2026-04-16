@@ -202,9 +202,8 @@ class sliceview[T](Sequence[T]):
                 self._base[range_to_slice(r[index])] = value
             
             case SupportsIndex():
-                w_size = len(r)
-                index = int(index) + (w_size if int(index) < 0 else 0)
-                if index not in range(w_size):
+                index = int(index) + (len(r) if int(index) < 0 else 0)
+                if not 0 <= index < len(r):
                     raise IndexError("sliceview index out of range")
                 self._base[r[index]] = value
             

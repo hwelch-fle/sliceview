@@ -41,6 +41,17 @@ class TestConstruction:
         sv = sliceview((10, 20, 30, 40))[::2]
         assert list(sv) == [10, 30]
 
+    def test_proxy_base(self):
+        from weakref import proxy
+        class weaklist[T](list[T]): ...
+        
+        x = weaklist([1,2,3,4])
+        sv = sliceview(proxy(x))
+        x[0] = 0
+        assert sv[0] == 0
+        del x
+        with pytest.raises(ReferenceError):
+            sv[0]
 
 # ---------------------------------------------------------------------------
 # Indexing

@@ -217,14 +217,8 @@ class sliceview[T](Sequence[T]):
     # perf: O(n)
     def __iter__(self) -> Iterator[T]:
         r = self.range if self._unbound else self._range
-        yield from (self._base[i] for i in r)
-
-    # perf: ~800ns O(1)
-    def __bool__(self) -> bool:
-        for _ in self:
-            return True
-        else:
-            return False
+        for i in r:
+            yield self._base[i]
 
     # perf: O(n)*(item.__eq__) worst case
     def __contains__(self, item: object) -> bool:
@@ -233,7 +227,8 @@ class sliceview[T](Sequence[T]):
     # perf: same as __iter__
     def __reversed__(self) -> Iterator[T]:
         r = self.range if self._unbound else self._range
-        return (self._base[i] for i in reversed(r))
+        for i in reversed(r):
+            yield self._base[i]
 
     # perf: O(n)*(len(self)*item.__eq__) worst case
     def __eq__(self, other: Sequence[T] | object) -> bool:

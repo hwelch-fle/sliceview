@@ -194,24 +194,23 @@ class sliceview[T](Sequence[T]):
         if not isinstance(self._base, MutableSequence):
             raise TypeError(f"underlying sequence of type '{type(self._base)}' has no '__setitem__'")
         
+        if not isinstance(index, (slice, SupportsIndex)):
+            raise TypeError(
+                f'{type(self).__name__} indices must be integers or slices, '
+                f'not {type(index).__name__}'
+            )
+        
         r = self.range if self._unbound else self._range
-        match index:
-            case slice():
-                if not isinstance(value, Iterable):
-                    raise TypeError('can only assign an iterable')
-                self._base[range_to_slice(r[index])] = value
-            
-            case SupportsIndex():
-                index = int(index) + (len(r) if int(index) < 0 else 0)
-                if not 0 <= index < len(r):
-                    raise IndexError("sliceview index out of range")
-                self._base[r[index]] = value
-            
-            case _:
-                raise TypeError(
-                    f'{type(self).__name__} indices must be integers or slices, '
-                    f'not {type(index).__name__}'
-                )
+        
+        if isinstance(index, slice):
+            self._base[range_to_slice(r[index])] = value
+        else:
+            index = index.__index__()
+            if index < 0: 
+                index += len(r)
+            if not 0 <= index < len(r):
+                raise IndexError("sliceview index out of range")
+            self._base[r[index]] = value
 
     # perf: Sequence.__getitem__ * n
     def __iter__(self) -> Iterator[T]:

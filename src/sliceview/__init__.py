@@ -159,34 +159,53 @@ class sliceview[T](Sequence[T]):
         return len(self._current_range())
 
     @overload
-    def __getitem__(self, index: int) -> object: ...
+    def __getitem__(self, index: SupportsIndex) -> T: ...
     @overload
     def __getitem__(self, index: slice) -> sliceview[T]: ...
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: object):
+        if not isinstance(index, (slice, SupportsIndex)):
+            raise TypeError(
+                f'{type(self).__name__} indices must be integers or slices, '
+                f'not {type(index).__name__}'
+            )
+        
         if isinstance(index, slice):
             # Compose slices using Python's range slicing — O(1), exact.
             sub = self._current_range()[index]
-            return sliceview._from_range(self._base, sub)
-
+            return sliceview[T]._from_range(self._base, sub)
+        
         cr = self._current_range()
         length = len(cr)
+        index = index.__index__()
         if index < 0:
             index += length
         if not (0 <= index < length):
             raise IndexError("sliceview index out of range")
         return self._base[cr[index]]
 
-    def __setitem__(self, index, value) -> None:
-        if not hasattr(self._base, "__setitem__"):
-            raise TypeError("underlying sequence is not mutable")
+    @overload
+    def __setitem__(self, index: SupportsIndex, value: T) -> None: ...
+    @overload
+    def __setitem__(self, index: slice, value: Iterable[T]) -> None: ...
 
+    def __setitem__(self, index: slice | SupportsIndex, value: T | Iterable[T]) -> None:
+        if not isinstance(self._base, MutableSequence):
+            raise TypeError(f"underlying sequence of type '{type(self._base)}' has no '__setitem__'")
+
+        if not isinstance(index, (slice, SupportsIndex)):
+            raise TypeError(
+                f'{type(self).__name__} indices must be integers or slices, '
+                f'not {type(index).__name__}'
+            )
+        
         if isinstance(index, slice):
             self._setslice(index, value)
             return
 
         cr = self._current_range()
         length = len(cr)
+        index = index.__index__()
         if index < 0:
             index += length
         if not (0 <= index < length):

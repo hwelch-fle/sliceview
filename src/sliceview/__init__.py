@@ -105,7 +105,7 @@ class sliceview[T](Sequence[T]):
     def __init__(
         self, base: Sequence[T], start:Any = None, stop: Any = None, step: Any = None
     ) -> None:
-        if not (hasattr(base, "__len__") and hasattr(base, "__getitem__")):
+        if not isinstance(base, Sequence): #type: ignore[reportUnnecessaryIsInstance]
             raise TypeError(
                 f"sliceview requires a sequence with __len__ and __getitem__, "
                 f"got {type(base).__name__!r}"

@@ -49,25 +49,22 @@ __all__ = ["sliceview"]
 __version__ = "0.1.0"
 
 
-# perf: ~250ns O(1)
+# perf: ~200ns O(1)
 def range_to_slice(r: range) -> slice:
     """Convert a range to a slice"""
     start, stop, step = r.start, r.stop, r.step
 
-    # range (n, n, s) -> slice(0, 0, 1) [empty]
     if start == stop:
         return slice(0,0,1)
     
-    # range(n, n-1, s) -> slice(n, None, s)
-    _inverted = stop < start and step > 0
-    # range(n, n+1, -s) -> slice(n, None, -s)
-    _reversed = stop > start and step < 0
-    # range(n, -1, -s) -> slice(n, None, -s)
-    _from_end = step < 0 and stop == -1
-    if _inverted or _reversed or _from_end:
-        stop = None
-    
-    return slice(start, stop, step)
+    no_stop = (
+        # Unbound range
+        step < 0 and stop == -1
+        # Inverted ranges
+        or stop < start and step > 0
+        or stop > start and step < 0
+    )
+    return slice(start, None if no_stop else stop, step)
 
 
 class sliceview[T](Sequence[T]):

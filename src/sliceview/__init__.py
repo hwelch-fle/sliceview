@@ -228,12 +228,10 @@ class sliceview[T](Sequence[T]):
     # Equality and hashing
     # ------------------------------------------------------------------
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, Sequence):
             return len(self) == len(other) and all(a == b for a, b in zip(self, other))
-        return NotImplemented
-
-    __hash__ = None  # type: ignore[assignment]  # unhashable by design
+        return False
 
     # ------------------------------------------------------------------
     # Repr

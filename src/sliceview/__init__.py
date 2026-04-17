@@ -86,32 +86,20 @@ class sliceview[T](Sequence[T]):
         >>> list(sv2)
         [1, 3, 5]
     """
-    
-    # Flag for allowing sliceviews to overflow slice assignment
-    # >>> sv = sliceview(list(range(10)), 0, 1)
-    # >>> print(sv)
-    # sliceview[0:1:1](>[0]<)
-    # >>> sv[:] = [5,6,7,8,9]
-    # ValueError attempt to assign sequence of size 5 to extended slice of size 1
-    # >>> sliceview._limit_assignment_to_view = False
-    # >>> sv[:] = [5,6,7,8,9]
-    # >>> print(sv)
-    # sliceview[1:2:1](>[5]<) # ...[6,7,8,9,1,2,3,...]
-    #                               ^^^^^^^overflow in base
-    _limit_assignment_to_view = True
-
     __slots__ = ("_base", "_range", "_unbound")
 
     @overload
     def __init__(self, base: Sequence[T]) -> None: ...
     @overload
+    def __init__(self, base: Sequence[T], start: slice) -> None: ...
+    @overload
     def __init__(
-        self, base: Sequence[T], start: slice | int, stop: int | None = None, step: int | None = None
+        self, base: Sequence[T], start: int | None = None, stop: int | None = None, step: int | None = None
     ) -> None: ...
 
     # perf: ~500ns O(1)
     def __init__(
-        self, base: Sequence[T] | Any, start : Any = None, stop: Any = None, step: Any = None
+        self, base: Sequence[T], start : Any = None, stop: Any = None, step: Any = None
     ) -> None:
         if not isinstance(base, Sequence):
             raise TypeError(
@@ -202,14 +190,7 @@ class sliceview[T](Sequence[T]):
         r = self.range if self._unbound else self._range
         
         if isinstance(index, slice):
-            target = range_to_slice(r[index])
-            if self._limit_assignment_to_view:
-                if (sl := len(r[index])) != (vl := len(list(value))):
-                    raise ValueError(
-                        f"attempt to assign sequence of size {vl} "
-                        f"to extended slice of size {sl}"
-                    )
-            self._base[target] = value
+            self._base[range_to_slice(r[index])] = value
         else:
             index = index.__index__()
             if index < 0: 

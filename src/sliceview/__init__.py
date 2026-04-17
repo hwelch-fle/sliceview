@@ -62,7 +62,7 @@ class _OpenRange:
         return range(self.start, stop, self.step)
 
 
-class sliceview(Sequence):
+class sliceview[T](Sequence[T]):
     """A zero-copy, composable slice view over any :class:`collections.abc.Sequence`.
 
     Parameters
@@ -93,19 +93,24 @@ class sliceview(Sequence):
     # Construction
     # ------------------------------------------------------------------
 
+    @overload
+    def __init__(self, base: Sequence[T]) -> None: ...
+    @overload
+    def __init__(self, base: Sequence[T], start: slice) -> None: ...
+    @overload
     def __init__(
-        self,
-        base: Sequence,
-        start: Union[int, slice, None] = None,
-        stop: Optional[int] = None,
-        step: Optional[int] = None,
+        self, base: Sequence[T], start: int | None = None, stop: int | None = None, step: int | None = None
+    ) -> None: ...
+
+    def __init__(
+        self, base: Sequence[T], start:Any = None, stop: Any = None, step: Any = None
     ) -> None:
         if not (hasattr(base, "__len__") and hasattr(base, "__getitem__")):
             raise TypeError(
                 f"sliceview requires a sequence with __len__ and __getitem__, "
                 f"got {type(base).__name__!r}"
             )
-        self._base = base
+        self._base: Sequence[T] | MutableSequence[T] = base
 
         if isinstance(start, slice):
             if start or stop:
@@ -128,7 +133,7 @@ class sliceview(Sequence):
             self._range = range(s, e, st)
 
     @classmethod
-    def _from_range(cls, base: Sequence, r) -> "sliceview":
+    def _from_range(cls, base: Sequence[T], r: range) -> sliceview[T]:
         """Internal constructor: build a view directly from a range object."""
         sv = cls.__new__(cls)
         sv._base = base
@@ -156,7 +161,7 @@ class sliceview(Sequence):
     @overload
     def __getitem__(self, index: int) -> object: ...
     @overload
-    def __getitem__(self, index: slice) -> "sliceview": ...
+    def __getitem__(self, index: slice) -> sliceview[T]: ...
 
     def __getitem__(self, index):
         if isinstance(index, slice):
@@ -196,7 +201,7 @@ class sliceview(Sequence):
     def __contains__(self, item) -> bool:
         return any(item == el for el in self)
 
-    def __reversed__(self) -> Iterator:
+    def __reversed__(self) -> Iterator[T]:
         base = self._base
         return (base[i] for i in reversed(self._current_range()))
 
@@ -223,7 +228,7 @@ class sliceview(Sequence):
     # Advance — sliding-window helper
     # ------------------------------------------------------------------
 
-    def advance(self, n: int) -> "sliceview":
+    def advance(self, n: int) -> Self:
         """Shift the view's window forward by *n* index positions in-place.
 
         Returns *self* so calls can be chained.  Useful for sliding windows:
@@ -254,11 +259,11 @@ class sliceview(Sequence):
     # tolist / copy
     # ------------------------------------------------------------------
 
-    def tolist(self) -> list:
+    def tolist(self) -> list[T]:
         """Return a new list containing the elements covered by this view."""
         return list(self)
 
-    def copy(self) -> list:
+    def copy(self) -> list[T]:
         """Alias for :meth:`tolist`."""
         return self.tolist()
 
@@ -267,7 +272,7 @@ class sliceview(Sequence):
     # ------------------------------------------------------------------
 
     @property
-    def base(self):
+    def base(self) -> Sequence[T] | MutableSequence[T]:
         """The underlying sequence this view points into."""
         return self._base
 

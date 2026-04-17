@@ -201,7 +201,6 @@ class sliceview[T](Sequence[T]):
         
         r = self.range if self._unbound else self._range
         
-        # Note: 
         if isinstance(index, slice):
             target = range_to_slice(r[index])
             if self._limit_assignment_to_view:

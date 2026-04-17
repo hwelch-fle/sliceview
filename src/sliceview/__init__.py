@@ -297,21 +297,16 @@ class sliceview[T](Sequence[T]):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _setslice(self, sl: slice, values) -> None:
-        target_range = self._current_range()[sl]
-        values = list(values)
-
-        if abs(target_range.step) != 1:
+    def _setslice(self, sl: slice, values: Iterable[T]) -> None:
+        if TYPE_CHECKING: # Determined in __setitem__
+            assert isinstance(self._base, MutableSequence)
+        
+        tr = self._current_range()[sl]
+        if abs(tr.step) != 1:
             # Extended slice assignment must match length exactly.
-            if len(values) != len(target_range):
-                raise ValueError(
-                    f"attempt to assign sequence of size {len(values)} "
-                    f"to extended slice of size {len(target_range)}"
-                )
-            for i, v in zip(target_range, values):
-                self._base[i] = v
-        else:
-            # Step ±1: delegate to the base (allows resizing if base supports it).
-            self._base[
-                slice(target_range.start, target_range.stop, target_range.step)
-            ] = values
+            values = list(values)
+            if len(values) == len(tr):
+                for i, v in zip(tr, values):
+                    self._base[i] = v
+                return
+        self._base[slice(tr.start, tr.stop, tr.step)] = values

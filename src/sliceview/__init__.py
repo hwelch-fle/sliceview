@@ -197,12 +197,22 @@ class sliceview(Sequence):
     __hash__ = None  # type: ignore[assignment]  # unhashable by design
 
     # ------------------------------------------------------------------
-    # Repr
+    # Repr & Str
     # ------------------------------------------------------------------
 
     def __repr__(self) -> str:
-        cr = self._current_range()
-        return f"sliceview({self._base!r})[{cr.start}:{cr.stop}:{cr.step}]"
+        _window = slice(
+            self._range.start, self._range.stop, self._range.step
+        ).indices(len(self._base))
+        _window_repr = ':'.join(map(str, _window))
+        return f"sliceview[{_window_repr}]({object.__repr__(self._base)})"
+
+    def __str__(self) -> str:
+        _window = slice(
+            self._range.start, self._range.stop, self._range.step
+        ).indices(len(self._base))
+        _window_repr = ':'.join(map(str, _window))
+        return f"sliceview[{_window_repr}](>{list(self)}<)"
 
     # ------------------------------------------------------------------
     # Advance — sliding-window helper

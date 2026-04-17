@@ -190,6 +190,12 @@ class sliceview[T](Sequence[T]):
         r = self.range if self._unbound else self._range
         
         if isinstance(index, slice):
+            if r.step != 1:
+                value = list(value)
+                if len(r[index]) == len(value):
+                    for i, v in zip(r[index], value):
+                        self._base[i] = v
+                    return
             self._base[range_to_slice(r[index])] = value
         else:
             index = index.__index__()

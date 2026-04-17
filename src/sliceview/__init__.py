@@ -233,27 +233,24 @@ class sliceview[T](Sequence[T]):
         return f"sliceview[{_window_repr}](>{list(self)}<)"
     
     # perf: ~250ns O(1)
-    def advance(self, n: int) -> Self:
+    def advance(self, n: int = 1) -> Self:
         """Shift the view's window forward by *n* index positions in-place.
 
-        Parameters
-        ----------
-        n: Positions to advance (negative to retreat).
+        Args:
+            n: Positions to advance (negative to retreat). (default: 1)
             
-        Returns
-        ----------
-        *self* so calls can be chained.
+        Returns:
+            *self* so calls can be chained.
 
-        Example
-        ----------
-        >>> data = list(range(10))
-        >>> sv = sliceview(data, 0, 3)
-        >>> list(sv)
-        [0, 1, 2]
-        >>> sv.advance(3)
-        sliceview(...)[3:6:1]
-        >>> list(sv)
-        [3, 4, 5]
+        Example:
+            >>> data = list(range(10))
+            >>> sv = sliceview(data, 0, 3)
+            >>> list(sv)
+            [0, 1, 2]
+            >>> sv.advance(3)
+            sliceview(...)[3:6:1]
+            >>> list(sv)
+            [3, 4, 5]
         """
         b_len = len(self._base)
         cr = self.range if self._unbound else self._range

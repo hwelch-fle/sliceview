@@ -97,7 +97,12 @@ class sliceview(Sequence):
             )
         self._base = base
 
-        if isinstance(start, slice) and stop is None and step is None:
+        if isinstance(start, slice):
+            if start or stop:
+                ValueError(
+                    'sliceview initialized with slice '
+                    'must not have stop/step arguments'
+                )
             sl: slice = start
         else:
             sl = slice(start, stop, step)

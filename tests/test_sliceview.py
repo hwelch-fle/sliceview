@@ -200,38 +200,38 @@ class TestMutation:
 # Advance
 # ---------------------------------------------------------------------------
 
-# class TestAdvance:
-#     def test_advance_basic(self):
-#         data = list(range(10))
-#         sv = sliceview(data, 0, 3)
-#         assert list(sv) == [0, 1, 2]
-#         sv.advance(3)
-#         assert list(sv) == [3, 4, 5]
-# 
-#     def test_advance_returns_self(self):
-#         sv = sliceview(list(range(10)), 0, 5)
-#         assert sv.advance(5) is sv
-# 
-#     def test_advance_past_end_clamps(self):
-#         data = list(range(5))
-#         sv = sliceview(data, 0, 3)
-#         sv.advance(100)
-#         assert list(sv) == []
-# 
-#     def test_advance_negative(self):
-#         data = list(range(10))
-#         sv = sliceview(data, 5, 8)
-#         sv.advance(-3)
-#         assert list(sv) == [2, 3, 4]
-# 
-#     def test_sliding_window(self):
-#         data = list(range(12))
-#         sv = sliceview(data, 0, 4)
-#         result = []
-#         for _ in range(3):
-#             result.append(list(sv))
-#             sv.advance(4)
-#         assert result == [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]
+class TestAdvance:
+    def test_advance_basic(self):
+        data = list(range(10))
+        sv = sliceview(data, 0, 3)
+        assert list(sv) == [0, 1, 2]
+        sv.advance(3)
+        assert list(sv) == [3, 4, 5]
+
+    def test_advance_returns_self(self):
+        sv = sliceview(list(range(10)), 0, 5)
+        assert sv.advance(5) is sv
+
+    def test_advance_past_end_clamps(self):
+        data = list(range(5))
+        sv = sliceview(data, 0, 3)
+        sv.advance(100)
+        assert list(sv) == []
+
+    def test_advance_negative(self):
+        data = list(range(10))
+        sv = sliceview(data, 5, 8)
+        sv.advance(-3)
+        assert list(sv) == [2, 3, 4]
+
+    def test_sliding_window(self):
+        data = list(range(12))
+        sv = sliceview(data, 0, 4)
+        result = []
+        for _ in range(3):
+            result.append(list(sv))
+            sv.advance(4)
+        assert result == [[0, 1, 2, 3], [4, 5, 6, 7], [8, 9, 10, 11]]
 
 
 # ---------------------------------------------------------------------------
@@ -346,3 +346,15 @@ class TestLiveMutation:
         sv = sliceview(data)
         data.append(4)
         assert len(sv) == 4
+
+
+y: sliceview[str] = sliceview([])
+
+x = sliceview([1,2,3])
+x = sliceview([1,2,3], slice(0, None, 10))
+x = sliceview([1,2,3], 1)
+x = sliceview([1,2,3], 1, 10)
+x = sliceview([1,2,3], 1, None, 100)
+x = sliceview((1,2,3), 1, None, None)
+
+z = sliceview([1])

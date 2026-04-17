@@ -71,28 +71,23 @@ def range_to_slice(r: range) -> slice:
 
 
 class sliceview[T](Sequence[T]):
-    """A zero-copy, composable slice view over any :class:`collections.abc.Sequence`.
+    """A zero-copy, composable slice view over any :class:`Sequence`.
 
-    Parameters
-    ----------
-    base:
-        The underlying sequence.  Any object that implements
-        ``__len__`` and ``__getitem__`` with integer indices is accepted.
-    start, stop, step:
-        Slice parameters (same semantics as the built-in :class:`slice`).
-        *start* may alternatively be a :class:`slice` object, in which case
-        *stop* and *step* must be omitted.
+    Params:
+        base: The underlying :class:`Sequence`
+        start: Start index or a :class:`slice` object (optional)
+        stop: Stop index (if *start* is a `slice`, this must be omitted) (optional)
+        step: Step amount (if *start* is a `slice`, this must be omitted) (optional)
 
-    Examples
-    --------
-    >>> sv = sliceview([0, 1, 2, 3, 4, 5])
-    >>> list(sv[1:4])
-    [1, 2, 3]
-    >>> list(sv[::2])
-    [0, 2, 4]
-    >>> sv2 = sv[1:][::2]   # composed — O(1), no copy
-    >>> list(sv2)
-    [1, 3, 5]
+    Examples:
+        >>> sv = sliceview([0, 1, 2, 3, 4, 5])
+        >>> list(sv[1:4])
+        [1, 2, 3]
+        >>> list(sv[::2])
+        [0, 2, 4]
+        >>> sv2 = sv[1:][::2]   # composed — O(1), no copy
+        >>> list(sv2)
+        [1, 3, 5]
     """
 
     __slots__ = ("_base", "_range", "_unbound")
@@ -100,20 +95,14 @@ class sliceview[T](Sequence[T]):
     @overload
     def __init__(self, base: Sequence[T]) -> None: ...
     @overload
-    def __init__(self, base: Sequence[T], start: slice) -> None: ...
-    @overload
-    def __init__(self, base: Sequence[T], start: int, stop: int) -> None: ...
-    @overload
-    def __init__(self, base: Sequence[T], start: int, stop: int, step: int) -> None: ...
-    @overload
-    def __init__(self, base: Sequence[T], start: int, stop: None, step: int) -> None: ...
+    def __init__(
+        self, base: Sequence[T], start: slice | int, stop: int | None = None, step: int | None = None
+    ) -> None: ...
 
     # perf: ~500ns O(1)
-    def __init__(self, base: Sequence[T] | object, 
-                 start : object = None, 
-                 stop: object = None, 
-                 step: object = None,
-        ) -> None:
+    def __init__(
+        self, base: Sequence[T] | Any, start : Any = None, stop: Any = None, step: Any = None
+    ) -> None:
         if not isinstance(base, Sequence):
             raise TypeError(
                 f"sliceview requires a sequence with __len__ and __getitem__, "

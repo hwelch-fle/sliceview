@@ -212,12 +212,12 @@ class sliceview[T](Sequence[T]):
             raise IndexError("sliceview index out of range")
         self._base[cr[index]] = value
 
-    def __iter__(self) -> Iterator:
+    def __iter__(self) -> Iterator[T]:
         base = self._base
         for i in self._current_range():
             yield base[i]
 
-    def __contains__(self, item) -> bool:
+    def __contains__(self, item: object) -> bool:
         return any(item == el for el in self)
 
     def __reversed__(self) -> Iterator[T]:

@@ -30,9 +30,19 @@ Basic usage::
 
 from __future__ import annotations
 
-from collections.abc import Sequence, Iterator
-from typing import overload, Union, Optional
-
+from collections.abc import (
+    Iterable,
+    Iterator,
+    Sequence, 
+    MutableSequence,
+)
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Self,
+    SupportsIndex, 
+    overload,
+)
 
 __all__ = ["sliceview"]
 __version__ = "0.1.0"

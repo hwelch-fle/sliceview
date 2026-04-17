@@ -243,19 +243,36 @@ class sliceview[T](Sequence[T]):
             *self* so calls can be chained.
 
         Example:
-            >>> data = list(range(10))
-            >>> sv = sliceview(data, 0, 3)
-            >>> list(sv)
-            [0, 1, 2]
+            >>> sv = sliceview(range(10), 0, 3)
+            >>> print(sv)
+            sliceview[0:3:1](>[0, 1, 2]<)
             >>> sv.advance(3)
-            sliceview(...)[3:6:1]
-            >>> list(sv)
-            [3, 4, 5]
+            sliceview[3:6:1](>[3, 4, 5]<)
         """
         b_len = len(self._base)
-        cr = self.range if self._unbound else self._range
-        new_start = max(0, min(cr.start + n, b_len))
-        delta = new_start - cr.start
-        new_stop = max(0, min(cr.stop + delta, b_len))
-        self._range = range(new_start, new_stop, cr.step)
+        r = self.range if self._unbound else self._range
+        
+        new_start = max(0, min(r.start + n, b_len))
+        delta = new_start - r.start
+        new_stop = max(0, min(r.stop + delta, b_len))
+        self._range = range(new_start, new_stop, r.step)
         return self
+
+    # perf: same as advance
+    def advance_window(self, n: int = 1) -> Self:
+        """Shift the view's window forward by *n* window widths in-place
+        
+        Args:
+            n: The number of window widths to advance (negative to retreat) (default: 1)
+        
+        Returns:
+            *self* so calls can be chained.
+        
+        Example:
+            >>> sv = sliceview(range(100), 0, 5)
+            >>> print(sv)
+            sliceview[0:5:1](>[0, 1, 2, 3, 4]<)
+            >>> print(sv.advance_window(3))
+            sliceview[15:20:1](>[15, 16, 17, 18, 19]<)
+        """
+        return self.advance(len(self)*n)

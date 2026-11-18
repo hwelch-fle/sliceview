@@ -237,7 +237,9 @@ class sliceview[T](Sequence[T]):
     def __eq__(self, other: Sequence[T] | object) -> bool:
         if is_sequence(other) and len(self) == len(other):
             return all(a == b for a, b in zip(self, other))
-        return False
+        return NotImplemented
+
+    __hash__ = None
 
     # perf: ~1000ns O(1)
     def __repr__(self) -> str:

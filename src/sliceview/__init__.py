@@ -31,19 +31,18 @@ Basic usage::
 from __future__ import annotations
 
 from collections.abc import (
-    Iterable, 
-    Sequence, 
-    Iterator, 
+    Iterable,
+    Iterator,
     MutableSequence,
+    Sequence,
 )
-
 from typing import (
     Any,
-    Self, 
-    SupportsIndex, 
-    overload, 
+    Self,
+    SupportsIndex,
+    TypeGuard,
+    overload,
 )
-
 
 __all__ = ["sliceview"]
 __version__ = "0.1.0"
@@ -65,6 +64,19 @@ def range_to_slice(r: range) -> slice:
         or stop > start and step < 0
     )
     return slice(start, None if no_stop else stop, step)
+
+
+# Duck type checks/guards
+def is_sequence(o: object) -> TypeGuard[Sequence]:
+    return hasattr(o, '__len__') and hasattr(o, '__getitem__')
+
+
+def is_mutable_sequence(o: object) -> TypeGuard[MutableSequence]:
+    return (is_sequence(o)
+        and hasattr(o, '__setitem__')
+        and hasattr(o, '__delitem__')
+        and hasattr(o, 'insert')
+    )
 
 
 class sliceview[T](Sequence[T]):
@@ -101,12 +113,12 @@ class sliceview[T](Sequence[T]):
     def __init__(
         self, base: Sequence[T], start : Any = None, stop: Any = None, step: Any = None
     ) -> None:
-        if not isinstance(base, Sequence):
+        if not is_sequence(base):
             raise TypeError(
                 f"sliceview requires a sequence with __len__ and __getitem__, "
                 f"got {type(base).__name__!r}"
             )
-        self._base: Sequence[T] = base
+        self._base = base
         
         if isinstance(start, slice):
             if stop or step:
@@ -178,7 +190,7 @@ class sliceview[T](Sequence[T]):
     
     # perf: Sequence.__setitem__ + K
     def __setitem__(self, index: object, value: Any) -> None:
-        if not isinstance(self._base, MutableSequence):
+        if not is_mutable_sequence(self._base):
             raise TypeError(f"underlying sequence of type '{type(self._base)}' has no '__setitem__'")
         
         if not isinstance(index, (slice, SupportsIndex)):
@@ -223,7 +235,7 @@ class sliceview[T](Sequence[T]):
 
     # perf: O(n)*(len(self)*item.__eq__) worst case
     def __eq__(self, other: Sequence[T] | object) -> bool:
-        if isinstance(other, Sequence) and len(self) == len(other):
+        if is_sequence(other) and len(self) == len(other):
             return all(a == b for a, b in zip(self, other))
         return False
 
